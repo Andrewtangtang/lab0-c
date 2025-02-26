@@ -23,9 +23,10 @@ void q_free(struct list_head *head)
         return;
     }
 
-    struct list_head *current;
-    list_for_each (current, head)
-        q_release_element(list_entry(current, element_t, list));
+    element_t *entry, *safe;
+    // cppcheck-suppress unknownMacro
+    list_for_each_entry_safe (entry, safe, head, list)
+        q_release_element(entry);
     free(head);
 }
 
