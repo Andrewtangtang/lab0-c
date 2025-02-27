@@ -23,8 +23,8 @@ void q_free(struct list_head *head)
         return;
     }
 
-    element_t *entry, *safe;
-    // cppcheck-suppress unknownMacro
+    element_t *entry = NULL, *safe = NULL;
+    /* cppcheck-suppress unusedLabel */
     list_for_each_entry_safe (entry, safe, head, list)
         q_release_element(entry);
     free(head);
@@ -42,7 +42,6 @@ static element_t *new_element(char *s)
         free(e);
         return NULL;
     }
-    INIT_LIST_HEAD(&e->list);
     return e;
 }
 
@@ -79,13 +78,31 @@ bool q_insert_tail(struct list_head *head, char *s)
 /* Remove an element from head of queue */
 element_t *q_remove_head(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (list_empty(head)) {
+        return NULL;
+    }
+    element_t *entry = list_first_entry(head, element_t, list);
+    if (sp && entry->value) {
+        strncpy(sp, entry->value, bufsize - 1);
+        sp[bufsize - 1] = '\0';
+    }
+    list_del_init(&entry->list);
+    return entry;
 }
 
 /* Remove an element from tail of queue */
 element_t *q_remove_tail(struct list_head *head, char *sp, size_t bufsize)
 {
-    return NULL;
+    if (list_empty(head)) {
+        return NULL;
+    }
+    element_t *entry = list_last_entry(head, element_t, list);
+    if (sp && entry->value) {
+        strncpy(sp, entry->value, bufsize - 1);
+        sp[bufsize - 1] = '\0';
+    }
+    list_del_init(&entry->list);
+    return entry;
 }
 
 /* Return number of elements in queue */
