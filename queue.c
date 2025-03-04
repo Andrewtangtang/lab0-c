@@ -1,8 +1,14 @@
+#include "queue.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "queue.h"
+/* Notice: sometimes, Cppcheck would find the potential NULL pointer bugs,
+ * but some of them cannot occur. You can suppress them by adding the
+ * following line.
+ *   cppcheck-suppress nullPointer
+ */
 
 /* Create an empty queue */
 struct list_head *q_new()
@@ -30,8 +36,7 @@ void q_free(struct list_head *head)
     free(head);
 }
 
-
-static element_t *new_element(char *s)
+static inline element_t *new_element(char *s)
 {
     element_t *e = malloc(sizeof(element_t));
     if (!e)
@@ -44,7 +49,6 @@ static element_t *new_element(char *s)
     }
     return e;
 }
-
 
 /* Insert an element at head of queue */
 bool q_insert_head(struct list_head *head, char *s)
@@ -210,13 +214,11 @@ void reverse_segment(struct list_head *head, struct list_head *tail)
         curr = next;
     }
 
-
     before_head->next = prev;
     prev->prev = before_head;
     head->next = tail;
     tail->prev = head;
 }
-
 
 /* Reverse the nodes of the list k at a time */
 void q_reverseK(struct list_head *head, int k)
@@ -240,8 +242,114 @@ void q_reverseK(struct list_head *head, int k)
     }
 }
 
+static inline bool compare(struct list_head *left,
+                           struct list_head *right,
+                           bool descend)
+{
+    int result = strcmp(list_entry(left, element_t, list)->value,
+                        list_entry(right, element_t, list)->value);
+    return descend ? result >= 0 : result <= 0;
+}
+
+struct list_head *merge(struct list_head *left,
+                        struct list_head *right,
+                        bool descend)
+{
+    left->prev->next = NULL;
+    right->prev->next = NULL;
+
+    struct list_head *L1 = left;
+    struct list_head *L2 = right;
+    struct list_head *head = NULL, **ptr = &head;
+    struct list_head *prev = NULL;
+
+    while (L1 && L2) {
+        if (compare(L1, L2, descend)) {
+            *ptr = L1;
+            L1 = L1->next;
+        } else {
+            *ptr = L2;
+            L2 = L2->next;
+        }
+        (*ptr)->prev = prev;
+        prev = *ptr;
+        ptr = &(*ptr)->next;
+    }
+
+    *ptr = L1 ? L1 : L2;
+    (*ptr)->prev = prev;
+
+    struct list_head *current = *ptr;
+    while (current != NULL) {
+        current->prev = prev;
+        prev = current;
+        current = current->next;
+    }
+
+    if (head) {
+        struct list_head *tail = prev;
+        tail->next = head;
+        head->prev = tail;
+    }
+
+    return head;
+}
+
+static inline struct list_head *find_mid(struct list_head *left,
+                                         struct list_head *right)
+{
+    while (left != right) {
+        right = right->prev;
+        if (left == right)
+            break;
+        left = left->next;
+    }
+    return left;
+}
+
+struct list_head *merge_sort_recursive(struct list_head *head, bool descend)
+{
+    if (list_empty(head)) {
+        list_del_init(head);
+        return head;
+    }
+
+    struct list_head *mid = find_mid(head, head->prev);
+    struct list_head *right = mid->next;
+
+    // initialize the right list
+    right->prev = head->prev;
+    head->prev->next = right;
+
+    // initialize the left list with the head
+    mid->next = head;
+    head->prev = mid;
+
+    struct list_head *left_sorted = merge_sort_recursive(head, descend);
+    struct list_head *right_sorted = merge_sort_recursive(right, descend);
+
+    return merge(left_sorted, right_sorted, descend);
+}
+
 /* Sort elements of queue in ascending/descending order */
-void q_sort(struct list_head *head, bool descend) {}
+void q_sort(struct list_head *head, bool descend)
+{
+    if (list_empty(head) || list_is_singular(head))
+        return;
+    // temporary remove the head
+    struct list_head *first = head->next;
+    struct list_head *last = head->prev;
+    first->prev = last;
+    last->next = first;
+
+    struct list_head *sorted = merge_sort_recursive(first, descend);
+
+    // restore the head
+    sorted->prev->next = head;
+    head->prev = sorted->prev;
+    head->next = sorted;
+    sorted->prev = head;
+}
 
 /* Remove every node which has a node with a strictly less value anywhere to
  * the right side of it */
@@ -299,8 +407,60 @@ int q_descend(struct list_head *head)
 
 /* Merge all the queues into one sorted queue, which is in ascending/descending
  * order */
+
+void merge_lists_with_sentinel_node(struct list_head *l1,
+                                    struct list_head *l2,
+                                    bool descend)
+{
+    struct list_head *curr = l1->next;
+    struct list_head *next = l2->next;
+    struct list_head *head = l1, **ptr = &(head->next), *prev = head;
+
+    while (curr != l1 && next != l2) {
+        if (compare(curr, next, descend)) {
+            *ptr = curr;
+            curr = curr->next;
+        } else {
+            *ptr = next;
+            next = next->next;
+        }
+        (*ptr)->prev = prev;
+        prev = *ptr;
+        ptr = &(*ptr)->next;
+    }
+
+    if (curr == l1) {  // l1 is fully traversed
+        *ptr = next;
+        if (next != l2) {  // If l2 has remaining elements
+            next->prev = prev;
+            l2->prev->next = l1;
+            l1->prev = l2->prev;
+        }
+        INIT_LIST_HEAD(l2);
+    } else {  // l2 is fully traversed
+        *ptr = curr;
+        curr->prev = prev;
+        INIT_LIST_HEAD(l2);
+    }
+}
+
+
+#define element_next(pos, member) \
+    list_entry((pos)->member.next, typeof(*(pos)), member)
+
 int q_merge(struct list_head *head, bool descend)
 {
-    // https://leetcode.com/problems/merge-k-sorted-lists/
-    return 0;
+    if (!head || list_empty(head))
+        return 0;
+
+    queue_contex_t *entry = list_first_entry(head, queue_contex_t, chain),
+                   *next;
+    struct list_head *curr = entry->q;
+
+    for (next = element_next(entry, chain); &next->chain != head;
+         next = element_next(next, chain)) {
+        merge_lists_with_sentinel_node(curr, next->q, descend);
+    }
+
+    return q_size(entry->q);
 }
