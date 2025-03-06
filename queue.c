@@ -351,9 +351,7 @@ void q_sort(struct list_head *head, bool descend)
     sorted->prev = head;
 }
 
-/* Remove every node which has a node with a strictly less value anywhere to
- * the right side of it */
-int q_ascend(struct list_head *head)
+int q_filter(struct list_head *head, bool is_ascend)
 {
     if (!head || list_empty(head))
         return 0;
@@ -365,8 +363,12 @@ int q_ascend(struct list_head *head)
 
     while (curr != head) {
         while (top >= 0 &&
-               strcmp(list_entry(stack[top], element_t, list)->value,
-                      list_entry(curr, element_t, list)->value) > 0) {
+               ((is_ascend &&
+                 strcmp(list_entry(stack[top], element_t, list)->value,
+                        list_entry(curr, element_t, list)->value) > 0) ||
+                (!is_ascend &&
+                 strcmp(list_entry(stack[top], element_t, list)->value,
+                        list_entry(curr, element_t, list)->value) < 0))) {
             list_del_init(stack[top]);
             q_release_element(list_entry(stack[top], element_t, list));
             top--;
@@ -378,31 +380,19 @@ int q_ascend(struct list_head *head)
     return q_size(head);
 }
 
+
+/* Remove every node which has a node with a strictly less value anywhere to
+ * the right side of it */
+int q_ascend(struct list_head *head)
+{
+    return q_filter(head, true);
+}
+
 /* Remove every node which has a node with a strictly greater value anywhere to
  * the right side of it */
 int q_descend(struct list_head *head)
 {
-    if (!head || list_empty(head))
-        return 0;
-
-    struct list_head *curr = head->next;
-    struct list_head **stack =
-        malloc(sizeof(struct list_head *) * q_size(head));
-    int top = -1;
-
-    while (curr != head) {
-        while (top >= 0 &&
-               strcmp(list_entry(stack[top], element_t, list)->value,
-                      list_entry(curr, element_t, list)->value) < 0) {
-            list_del_init(stack[top]);
-            q_release_element(list_entry(stack[top], element_t, list));
-            top--;
-        }
-        stack[++top] = curr;
-        curr = curr->next;
-    }
-    free(stack);
-    return q_size(head);
+    return q_filter(head, false);
 }
 
 /* Merge all the queues into one sorted queue, which is in ascending/descending
