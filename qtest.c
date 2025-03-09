@@ -1055,6 +1055,67 @@ static bool do_next(int argc, char *argv[])
 
     return q_show(0);
 }
+#define swap_nodes(a, b)                   \
+    do {                                   \
+        struct list_head *tmp = (a)->next; \
+        (a)->next = (b)->next;             \
+        (b)->next = tmp;                   \
+        (b)->next->prev = (b);             \
+        (a)->next->prev = (a);             \
+        tmp = (a)->prev;                   \
+        (a)->prev = (b)->prev;             \
+        (b)->prev = tmp;                   \
+        (b)->prev->next = (b);             \
+        (a)->prev->next = (a);             \
+    } while (0)
+
+
+bool q_shuffle(struct list_head *head)
+{
+    if (!head || list_empty(head))
+        return false;
+
+    int size = q_size(head);
+    if (size == 1)
+        return true;
+
+    struct list_head *curr = head->prev;
+    while (curr != head) {
+        uint8_t random_bytes[8];
+        randombytes(random_bytes, sizeof(random_bytes));
+        size_t j = *((size_t *) random_bytes) % size;
+        struct list_head *target = head->next;
+        for (size_t i = 0; i < j; i++) {
+            target = target->next;
+        }
+        if (curr != target)
+            swap_nodes(curr, target);
+        curr = curr->prev;
+        size--;
+    }
+    return true;
+}
+
+
+static bool do_shuffle(int argc, char *argv[])
+{
+    if (argc != 1) {
+        report(1, "%s takes no arguments", argv[0]);
+        return false;
+    }
+    bool ok = q_shuffle(current->q);
+    if (!ok) {
+        report(1, "ERROR: Failed to shuffle queue");
+        return false;
+    }
+    double entropy = shannon_entropy((const uint8_t *) current->q);
+    if (entropy < 7.9) {
+        report(1, "ERROR: Shannon entropy is too low: %f", entropy);
+        return false;
+    }
+
+    return q_show(0);
+}
 
 static void console_init()
 {
@@ -1096,6 +1157,7 @@ static void console_init()
                 "");
     ADD_COMMAND(reverseK, "Reverse the nodes of the queue 'K' at a time",
                 "[K]");
+    ADD_COMMAND(shuffle, "Shuffle the queue", "");
     add_param("length", &string_length, "Maximum length of displayed string",
               NULL);
     add_param("malloc", &fail_probability, "Malloc failure probability percent",
