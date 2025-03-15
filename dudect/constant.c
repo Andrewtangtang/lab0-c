@@ -77,71 +77,93 @@ bool measure(int64_t *before_ticks,
 
     switch (mode) {
     case DUT(insert_head):
-        for (size_t i = DROP_SIZE; i < N_MEASURES - DROP_SIZE; i++) {
+        for (size_t i = 0; i < N_MEASURES; i++) {
             char *s = get_random_string();
+
             dut_new();
             dut_insert_head(
                 get_random_string(),
                 *(uint16_t *) (input_data + i * CHUNK_SIZE) % 10000);
             int before_size = q_size(l);
-            before_ticks[i] = cpucycles();
+
+            int64_t beforeticks = cpucycles();
             dut_insert_head(s, 1);
-            after_ticks[i] = cpucycles();
+            int64_t afterticks = cpucycles();
             int after_size = q_size(l);
             dut_free();
+            if (i < DROP_SIZE || i >= N_MEASURES - DROP_SIZE) {
+                continue;
+            }
+            before_ticks[i] = beforeticks;
+            after_ticks[i] = afterticks;
             if (before_size != after_size - 1)
                 return false;
         }
         break;
     case DUT(insert_tail):
-        for (size_t i = DROP_SIZE; i < N_MEASURES - DROP_SIZE; i++) {
+        for (size_t i = 0; i < N_MEASURES; i++) {
             char *s = get_random_string();
             dut_new();
             dut_insert_head(
                 get_random_string(),
                 *(uint16_t *) (input_data + i * CHUNK_SIZE) % 10000);
             int before_size = q_size(l);
-            before_ticks[i] = cpucycles();
+            int64_t beforeticks = cpucycles();
             dut_insert_tail(s, 1);
-            after_ticks[i] = cpucycles();
+            int64_t afterticks = cpucycles();
             int after_size = q_size(l);
             dut_free();
+            if (i < DROP_SIZE || i >= N_MEASURES - DROP_SIZE) {
+                continue;
+            }
+            before_ticks[i] = beforeticks;
+            after_ticks[i] = afterticks;
             if (before_size != after_size - 1)
                 return false;
         }
         break;
     case DUT(remove_head):
-        for (size_t i = DROP_SIZE; i < N_MEASURES - DROP_SIZE; i++) {
+        for (size_t i = 0; i < N_MEASURES; i++) {
             dut_new();
             dut_insert_head(
                 get_random_string(),
                 *(uint16_t *) (input_data + i * CHUNK_SIZE) % 10000 + 1);
             int before_size = q_size(l);
-            before_ticks[i] = cpucycles();
+            int64_t beforeticks = cpucycles();
             element_t *e = q_remove_head(l, NULL, 0);
-            after_ticks[i] = cpucycles();
+            int64_t afterticks = cpucycles();
             int after_size = q_size(l);
             if (e)
                 q_release_element(e);
             dut_free();
+            if (i < DROP_SIZE || i >= N_MEASURES - DROP_SIZE) {
+                continue;
+            }
+            before_ticks[i] = beforeticks;
+            after_ticks[i] = afterticks;
             if (before_size != after_size + 1)
                 return false;
         }
         break;
     case DUT(remove_tail):
-        for (size_t i = DROP_SIZE; i < N_MEASURES - DROP_SIZE; i++) {
+        for (size_t i = 0; i < N_MEASURES; i++) {
             dut_new();
             dut_insert_head(
                 get_random_string(),
                 *(uint16_t *) (input_data + i * CHUNK_SIZE) % 10000 + 1);
             int before_size = q_size(l);
-            before_ticks[i] = cpucycles();
+            int64_t beforeticks = cpucycles();
             element_t *e = q_remove_tail(l, NULL, 0);
-            after_ticks[i] = cpucycles();
+            int64_t afterticks = cpucycles();
             int after_size = q_size(l);
             if (e)
                 q_release_element(e);
             dut_free();
+            if (i < DROP_SIZE || i >= N_MEASURES) {
+                continue;
+            }
+            before_ticks[i] = beforeticks;
+            after_ticks[i] = afterticks;
             if (before_size != after_size + 1)
                 return false;
         }
