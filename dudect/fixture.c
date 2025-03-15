@@ -65,7 +65,7 @@ static void differentiate(int64_t *exec_times,
                           const int64_t *before_ticks,
                           const int64_t *after_ticks)
 {
-    for (size_t i = 0; i < N_MEASURES; i++)
+    for (size_t i = 0; i < N_MEASURES - 2 * DROP_SIZE; i++)
         exec_times[i] = after_ticks[i] - before_ticks[i];
 }
 
@@ -89,15 +89,15 @@ static void init_percentiles(int64_t *exec_times)
           (int (*)(const void *, const void *)) cmp);
     for (size_t i = 0; i < DUDECT_NUMBER_PERCENTILES; i++) {
         double p =
-            1 - (pow(0.5, 10 * (double) (i + 1) / DUDECT_NUMBER_PERCENTILES));
+            1 - pow(0.5, 10 * (double) (i + 1) / DUDECT_NUMBER_PERCENTILES);
         percentiles[i] = percentile(exec_times, p, N_MEASURES - 2 * DROP_SIZE);
     }
 }
 
 static void update_statistics(int64_t *exec_times, uint8_t *classes)
 {
-    for (size_t i = DROP_SIZE /* discard the first few measurements */;
-         i < N_MEASURES - DROP_SIZE; i++) {
+    for (size_t i = 0 /* discard the first few measurements */;
+         i < N_MEASURES - 2 * DROP_SIZE; i++) {
         int64_t difference = exec_times[i];
         /* CPU cycle counter overflowed or dropped measurement */
         if (difference <= 0)
@@ -179,14 +179,26 @@ static bool report(void)
            (double) (5 * 5) / (double) (max_tau * max_tau));
 
     /* Definitely not constant time */
-    if (max_t > t_threshold_bananas)
+    if (max_t > t_threshold_bananas) {
+        printf(
+            "CONSTANT TIME TEST RESULT: Definitely not constant time (t = "
+            "%+7.2f).\n",
+            max_t);
         return false;
+    }
 
     /* Probably not constant time. */
-    if (max_t > t_threshold_moderate)
+    if (max_t > t_threshold_moderate) {
+        printf(
+            "CONSTANT TIME TEST RESULT: Probably not constant time (t = "
+            "%+7.2f).\n",
+            max_t);
         return false;
+    }
 
     /* For the moment, maybe constant time. */
+    printf("CONSTANT TIME TEST RESULT: Possibly constant time (t = %+7.2f).\n",
+           max_t);
     return true;
 }
 

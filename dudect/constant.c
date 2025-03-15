@@ -77,7 +77,7 @@ bool measure(int64_t *before_ticks,
 
     switch (mode) {
     case DUT(insert_head):
-        for (size_t i = 0; i < N_MEASURES; i++) {
+        for (size_t i = 0, j = 0; i < N_MEASURES; i++) {
             char *s = get_random_string();
 
             dut_new();
@@ -94,14 +94,15 @@ bool measure(int64_t *before_ticks,
             if (i < DROP_SIZE || i >= N_MEASURES - DROP_SIZE) {
                 continue;
             }
-            before_ticks[i] = beforeticks;
-            after_ticks[i] = afterticks;
+            before_ticks[j] = beforeticks;
+            after_ticks[j] = afterticks;
+            j++;
             if (before_size != after_size - 1)
                 return false;
         }
         break;
     case DUT(insert_tail):
-        for (size_t i = 0; i < N_MEASURES; i++) {
+        for (size_t i = 0, j = 0; i < N_MEASURES; i++) {
             char *s = get_random_string();
             dut_new();
             dut_insert_head(
@@ -116,14 +117,15 @@ bool measure(int64_t *before_ticks,
             if (i < DROP_SIZE || i >= N_MEASURES - DROP_SIZE) {
                 continue;
             }
-            before_ticks[i] = beforeticks;
-            after_ticks[i] = afterticks;
+            before_ticks[j] = beforeticks;
+            after_ticks[j] = afterticks;
+            j++;
             if (before_size != after_size - 1)
                 return false;
         }
         break;
     case DUT(remove_head):
-        for (size_t i = 0; i < N_MEASURES; i++) {
+        for (size_t i = 0, j = 0; i < N_MEASURES; i++) {
             dut_new();
             dut_insert_head(
                 get_random_string(),
@@ -139,14 +141,15 @@ bool measure(int64_t *before_ticks,
             if (i < DROP_SIZE || i >= N_MEASURES - DROP_SIZE) {
                 continue;
             }
-            before_ticks[i] = beforeticks;
-            after_ticks[i] = afterticks;
+            before_ticks[j] = beforeticks;
+            after_ticks[j] = afterticks;
+            j++;
             if (before_size != after_size + 1)
                 return false;
         }
         break;
     case DUT(remove_tail):
-        for (size_t i = 0; i < N_MEASURES; i++) {
+        for (size_t i = 0, j = 0; i < N_MEASURES; i++) {
             dut_new();
             dut_insert_head(
                 get_random_string(),
@@ -159,25 +162,27 @@ bool measure(int64_t *before_ticks,
             if (e)
                 q_release_element(e);
             dut_free();
-            if (i < DROP_SIZE || i >= N_MEASURES) {
+            if (i < DROP_SIZE || i >= N_MEASURES - DROP_SIZE) {
                 continue;
             }
-            before_ticks[i] = beforeticks;
-            after_ticks[i] = afterticks;
+            before_ticks[j] = beforeticks;
+            after_ticks[j] = afterticks;
+            j++;
             if (before_size != after_size + 1)
                 return false;
         }
         break;
     default:
-        for (size_t i = DROP_SIZE; i < N_MEASURES - DROP_SIZE; i++) {
+        for (size_t i = 0, j = 0; i < N_MEASURES; i++) {
             dut_new();
             dut_insert_head(
                 get_random_string(),
                 *(uint16_t *) (input_data + i * CHUNK_SIZE) % 10000);
-            before_ticks[i] = cpucycles();
+            before_ticks[j] = cpucycles();
             dut_size(1);
-            after_ticks[i] = cpucycles();
+            after_ticks[j] = cpucycles();
             dut_free();
+            j++;
         }
     }
     return true;
