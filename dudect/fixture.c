@@ -83,15 +83,21 @@ static int cmp(const int64_t *a, const int64_t *b)
     return (*a > *b) ? 1 : -1;
 }
 
-static void init_percentiles(int64_t *exec_times)
+static void init_percentiles(const int64_t *exec_times)
 {
-    qsort(exec_times, N_MEASURES - 2 * DROP_SIZE, sizeof(int64_t),
+    int64_t *sorted_exec_times =
+        malloc((N_MEASURES - 2 * DROP_SIZE) * sizeof(int64_t));
+    memcpy(sorted_exec_times, exec_times,
+           (N_MEASURES - 2 * DROP_SIZE) * sizeof(int64_t));
+    qsort(sorted_exec_times, N_MEASURES - 2 * DROP_SIZE, sizeof(int64_t),
           (int (*)(const void *, const void *)) cmp);
     for (size_t i = 0; i < DUDECT_NUMBER_PERCENTILES; i++) {
         double p =
             1 - pow(0.5, 10 * (double) (i + 1) / DUDECT_NUMBER_PERCENTILES);
-        percentiles[i] = percentile(exec_times, p, N_MEASURES - 2 * DROP_SIZE);
+        percentiles[i] =
+            percentile(sorted_exec_times, p, N_MEASURES - 2 * DROP_SIZE);
     }
+    free(sorted_exec_times);
 }
 
 static void update_statistics(int64_t *exec_times, uint8_t *classes)
